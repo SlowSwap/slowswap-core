@@ -1,18 +1,14 @@
 {
-  "name": "@uniswap/v2-core",
+  "name": "@slowswap/v2-core",
   "description": "🎛 Core contracts for the UniswapV2 protocol",
   "version": "1.0.1",
-  "homepage": "https://uniswap.org",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Uniswap/uniswap-v2-core"
-  },
+  "homepage": "https://slowswap.org",
   "keywords": [
-    "uniswap",
+    "slowswap",
     "ethereum",
     "v2",
     "core",
-    "uniswap-v2"
+    "slowswap-v2"
   ],
   "files": [
     "contracts",
@@ -30,7 +26,7 @@
     "mocha": "^6.2.2",
     "prettier": "^1.19.1",
     "rimraf": "^3.0.0",
-    "solc": "0.5.16",
+    "solc": "^0.8.11",
     "ts-node": "^8.5.4",
     "typescript": "^3.7.3"
   },
