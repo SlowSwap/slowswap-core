@@ -139,7 +139,6 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         emit Burn(msg.sender, amount0, amount1, to);
     }
 
-    // this low-level function should be called from a contract which performs important safety checks
     function _swap(uint amount0Out, uint amount1Out, address to, bytes calldata data)
         private
         returns (uint amount0In, uint amount1In)
@@ -173,6 +172,7 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
     }
 
+    // this low-level function should be called from a contract which performs important safety checks
     function swap(
         uint amount0Out,
         uint amount1Out,
@@ -205,34 +205,25 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
                     || knownQty == amount1Out,
                 'INVALID_KNOWN_QTY'
             );
-            factory.vdf().validateProof(_getVDFSeeds(knownQty0, knownQty1), proof);
+            factory.vdf().validateProof(_getVDFSeed(knownQty0, knownQty1), proof);
         }
     }
 
-    function _getVDFSeeds(uint knownQty0, uint knownQty1)
+    function _getVDFSeed(uint knownQty0, uint knownQty1)
         private
         view
-        returns (bytes32[5] memory seeds)
+        returns (bytes32 seed)
     {
-        bytes32 salt;
         {
             address token0_ = token0;
             address token1_ = token1;
             assembly {
                 let p := mload(0x40)
-                mstore(p, origin())
-                mstore(add(p, 0x20), token0_)
-                mstore(add(p, 0x40), token1_)
-                mstore(add(p, 0x60), knownQty0)
-                mstore(add(p, 0x80), knownQty1)
-                salt := keccak256(p, 0xA0)
-            }
-        }
-        for (uint i = 0; i < 5; ++i) {
-            assembly {
-                mstore(0, salt)
-                mstore(0x20, blockhash(sub(number(), i)))
-                mstore(add(seeds, mul(i, 32)), keccak256(0, 0x40))
+                mstore(p, token0_)
+                mstore(add(p, 0x20), token1_)
+                mstore(add(p, 0x40), knownQty0)
+                mstore(add(p, 0x60), knownQty1)
+                seed := keccak256(p, 0x80)
             }
         }
     }

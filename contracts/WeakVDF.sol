@@ -12,7 +12,7 @@ contract WeakVDF is IVDF {
         T = T_;
     }
 
-    function validateProof(bytes32[5] calldata seeds, bytes calldata proofBytes)
+    function validateProof(bytes32 seed, bytes calldata proofBytes)
         external
         view
     {
@@ -20,12 +20,12 @@ contract WeakVDF is IVDF {
         uint256 pi;
         uint256 y;
         assembly {
-            let p := add(36, calldataload(164))
+            let p := add(36, calldataload(36))
             pi := calldataload(p)
             y := calldataload(add(p, 32))
         }
         for (uint256 i = 0; i < 5; ++i) {
-            uint256 x = _generateX(seeds[i]);
+            uint256 x = _generateX(seed, i);
             if (_isValidProof(x, y, pi)) {
                 return;
             }
@@ -33,8 +33,15 @@ contract WeakVDF is IVDF {
         revert('INVALID_PROOF');
     }
 
-    function _generateX(bytes32 seed) private pure returns (uint256 x) {
-        x = uint256(seed);
+    function _generateX(bytes32 seed, uint256 age) private view returns (uint256 x) {
+        assembly {
+            let p := mload(0x40)
+            mstore(p, seed)
+            mstore(add(p, 0x20), blockhash(sub(number(), add(age, 1))))
+            mstore(add(p, 0x40), origin())
+            // mstore(add(p, 0x60), gasprice()) // Allow on non-EIP1559 networks?
+            x := keccak256(p, 0x60)
+        }
     }
 
     function _isValidProof(uint256 x, uint256 y, uint256 pi)
