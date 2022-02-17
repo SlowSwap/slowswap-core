@@ -2,7 +2,7 @@
   "name": "@slowswap/v2-core",
   "description": "🎛 Core contracts for the UniswapV2 protocol",
   "version": "1.0.1",
-  "homepage": "https://slowswap.org",
+  "homepage": "https://slowswap.io",
   "keywords": [
     "slowswap",
     "ethereum",
