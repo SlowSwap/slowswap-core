@@ -8,7 +8,6 @@ import './libraries/UQ112x112.sol';
 import './interfaces/IERC20.sol';
 import './interfaces/IUniswapV2Factory.sol';
 import './interfaces/IUniswapV2Callee.sol';
-import './interfaces/IVDF.sol';
 
 contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
     using SafeMath  for uint;
@@ -35,6 +34,11 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         unlocked = 0;
         _;
         unlocked = 1;
+    }
+
+    modifier restricted() {
+        require(factory.isAllowedPairCaller(msg.sender), 'RESTRICTED');
+        _;
     }
 
     function getReserves() public view returns (uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast) {
@@ -139,9 +143,9 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         emit Burn(msg.sender, amount0, amount1, to);
     }
 
-    function _swap(uint amount0Out, uint amount1Out, address to, bytes calldata data)
-        private
-        returns (uint amount0In, uint amount1In)
+    function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data)
+        external
+        restricted
     {
         require(amount0Out > 0 || amount1Out > 0, 'UniswapV2: INSUFFICIENT_OUTPUT_AMOUNT');
         (uint112 _reserve0, uint112 _reserve1,) = getReserves(); // gas savings
@@ -159,8 +163,8 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
             balance0 = IERC20(_token0).balanceOf(address(this));
             balance1 = IERC20(_token1).balanceOf(address(this));
         }
-        amount0In = balance0 > _reserve0 - amount0Out ? balance0 - (_reserve0 - amount0Out) : 0;
-        amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
+        uint amount0In = balance0 > _reserve0 - amount0Out ? balance0 - (_reserve0 - amount0Out) : 0;
+        uint amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
         require(amount0In > 0 || amount1In > 0, 'UniswapV2: INSUFFICIENT_INPUT_AMOUNT');
         { // scope for reserve{0,1}Adjusted, avoids stack too deep errors
             uint balance0Adjusted = balance0.mul(1000).sub(amount0In.mul(3));
@@ -170,62 +174,6 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
 
         _update(balance0, balance1, _reserve0, _reserve1);
         emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
-    }
-
-    // this low-level function should be called from a contract which performs important safety checks
-    function swap(
-        uint amount0Out,
-        uint amount1Out,
-        address to,
-        bytes calldata data,
-        uint knownQty,
-        bytes calldata proof
-    )
-        external
-        lock
-    {
-        (uint amount0In, uint amount1In) = _swap(amount0Out, amount1Out, to, data);
-        // If the recipient contract is not a pair contract, it must provide a VDF.
-        if (!factory.isPairContract(to)) {
-            uint knownQty0;
-            uint knownQty1;
-            if (knownQty == amount0In) {
-                knownQty0 = amount0In;
-            } else if (knownQty == amount1In) {
-                knownQty1 = amount1In;
-            } else if (knownQty == amount0Out) {
-                knownQty0 = amount0Out;
-            } else if (knownQty == amount1Out) {
-                knownQty1 = amount1Out;
-            }
-            require(
-                knownQty == amount0In
-                    || knownQty == amount1In
-                    || knownQty == amount0Out
-                    || knownQty == amount1Out,
-                'INVALID_KNOWN_QTY'
-            );
-            factory.vdf().validateProof(_getVDFSeed(knownQty0, knownQty1), proof);
-        }
-    }
-
-    function _getVDFSeed(uint knownQty0, uint knownQty1)
-        private
-        view
-        returns (bytes32 seed)
-    {
-        {
-            address token0_ = token0;
-            address token1_ = token1;
-            assembly {
-                let p := mload(0x40)
-                mstore(p, token0_)
-                mstore(add(p, 0x20), token1_)
-                mstore(add(p, 0x40), knownQty0)
-                mstore(add(p, 0x60), knownQty1)
-                seed := keccak256(p, 0x80)
-            }
-        }
     }
 
     // force balances to match reserves

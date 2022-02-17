@@ -2,24 +2,28 @@
 pragma solidity ^0.8;
 
 import './interfaces/IUniswapV2Factory.sol';
-import './interfaces/IVDF.sol';
 import './UniswapV2Pair.sol';
 
 contract UniswapV2Factory is IUniswapV2Factory {
     address public feeTo;
     address public feeToSetter;
+    address public owner;
 
     mapping(address => mapping(address => address)) public getPair;
     address[] public allPairs;
-    mapping(address => bool) public isPairContract;
-    IVDF public immutable vdf;
+    mapping(address => bool) public isAllowedPairCaller;
 
     address private pairInitToken0;
     address private pairInitToken1;
 
-    constructor(address feeToSetter_, IVDF vdf_) {
+    constructor(address feeToSetter_) {
         feeToSetter = feeToSetter_;
-        vdf = vdf_;
+        owner = msg.sender;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, 'ONLY_OWNER');
+        _;
     }
 
     function allPairsLength() external view returns (uint) {
@@ -30,6 +34,13 @@ contract UniswapV2Factory is IUniswapV2Factory {
         external view returns (address token0, address token1)
     {
         return (pairInitToken0, pairInitToken1);
+    }
+
+    function toggleAllowedPairCaller(address pairCaller, bool toggle)
+        external
+        onlyOwner
+    {
+        isAllowedPairCaller[pairCaller] = toggle;
     }
 
     function createPair(address tokenA, address tokenB) external returns (address pair) {
@@ -43,7 +54,6 @@ contract UniswapV2Factory is IUniswapV2Factory {
         assembly {
             pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
         }
-        isPairContract[pair] = true;
         getPair[token0][token1] = pair;
         getPair[token1][token0] = pair; // populate mapping in the reverse direction
         allPairs.push(pair);
