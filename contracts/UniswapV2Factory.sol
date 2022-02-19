@@ -6,7 +6,6 @@ import './UniswapV2Pair.sol';
 
 contract UniswapV2Factory is IUniswapV2Factory {
     address public feeTo;
-    address public feeToSetter;
     address public owner;
 
     mapping(address => mapping(address => address)) public getPair;
@@ -16,9 +15,8 @@ contract UniswapV2Factory is IUniswapV2Factory {
     address private pairInitToken0;
     address private pairInitToken1;
 
-    constructor(address feeToSetter_) {
-        feeToSetter = feeToSetter_;
-        owner = msg.sender;
+    constructor(address owner_) {
+        owner = owner_;
     }
 
     modifier onlyOwner() {
@@ -34,6 +32,13 @@ contract UniswapV2Factory is IUniswapV2Factory {
         external view returns (address token0, address token1)
     {
         return (pairInitToken0, pairInitToken1);
+    }
+
+    function transferOwnership(address newOwner)
+        external
+        onlyOwner
+    {
+        owner = newOwner;
     }
 
     function toggleAllowedPairCaller(address pairCaller, bool toggle)
@@ -60,13 +65,7 @@ contract UniswapV2Factory is IUniswapV2Factory {
         emit PairCreated(token0, token1, pair, allPairs.length);
     }
 
-    function setFeeTo(address _feeTo) external {
-        require(msg.sender == feeToSetter, 'UniswapV2: FORBIDDEN');
+    function setFeeTo(address _feeTo) external onlyOwner {
         feeTo = _feeTo;
-    }
-
-    function setFeeToSetter(address _feeToSetter) external {
-        require(msg.sender == feeToSetter, 'UniswapV2: FORBIDDEN');
-        feeToSetter = _feeToSetter;
     }
 }
