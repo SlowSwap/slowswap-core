@@ -11,12 +11,14 @@ contract UniswapV2Factory is IUniswapV2Factory {
     mapping(address => mapping(address => address)) public getPair;
     address[] public allPairs;
     mapping(address => bool) public isAllowedPairCaller;
+    bytes32 public immutable PAIR_INIT_CODE_HASH;
 
     address private pairInitToken0;
     address private pairInitToken1;
 
     constructor(address owner_) {
         owner = owner_;
+        PAIR_INIT_CODE_HASH = keccak256(type(UniswapV2Pair).creationCode);
     }
 
     modifier onlyOwner() {
