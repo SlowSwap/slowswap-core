@@ -1,23 +1,53 @@
-pragma solidity =0.5.16;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity ^0.8;
 
 import './interfaces/IUniswapV2Factory.sol';
 import './UniswapV2Pair.sol';
 
 contract UniswapV2Factory is IUniswapV2Factory {
     address public feeTo;
-    address public feeToSetter;
+    address public owner;
 
     mapping(address => mapping(address => address)) public getPair;
     address[] public allPairs;
+    mapping(address => bool) public isAllowedPairCaller;
+    bytes32 public immutable PAIR_INIT_CODE_HASH;
 
-    event PairCreated(address indexed token0, address indexed token1, address pair, uint);
+    address private pairInitToken0;
+    address private pairInitToken1;
 
-    constructor(address _feeToSetter) public {
-        feeToSetter = _feeToSetter;
+    constructor(address owner_) {
+        owner = owner_;
+        PAIR_INIT_CODE_HASH = keccak256(type(UniswapV2Pair).creationCode);
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, 'ONLY_OWNER');
+        _;
     }
 
     function allPairsLength() external view returns (uint) {
         return allPairs.length;
+    }
+
+    function getPairInitParams()
+        external view returns (address token0, address token1)
+    {
+        return (pairInitToken0, pairInitToken1);
+    }
+
+    function transferOwnership(address newOwner)
+        external
+        onlyOwner
+    {
+        owner = newOwner;
+    }
+
+    function toggleAllowedPairCaller(address pairCaller, bool toggle)
+        external
+        onlyOwner
+    {
+        isAllowedPairCaller[pairCaller] = toggle;
     }
 
     function createPair(address tokenA, address tokenB) external returns (address pair) {
@@ -27,23 +57,18 @@ contract UniswapV2Factory is IUniswapV2Factory {
         require(getPair[token0][token1] == address(0), 'UniswapV2: PAIR_EXISTS'); // single check is sufficient
         bytes memory bytecode = type(UniswapV2Pair).creationCode;
         bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        (pairInitToken0, pairInitToken1) = (token0, token1);
         assembly {
             pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
         }
-        IUniswapV2Pair(pair).initialize(token0, token1);
+        require(pair != address(0), 'PAIR_CREATION_FAILED');
         getPair[token0][token1] = pair;
         getPair[token1][token0] = pair; // populate mapping in the reverse direction
         allPairs.push(pair);
         emit PairCreated(token0, token1, pair, allPairs.length);
     }
 
-    function setFeeTo(address _feeTo) external {
-        require(msg.sender == feeToSetter, 'UniswapV2: FORBIDDEN');
+    function setFeeTo(address _feeTo) external onlyOwner {
         feeTo = _feeTo;
-    }
-
-    function setFeeToSetter(address _feeToSetter) external {
-        require(msg.sender == feeToSetter, 'UniswapV2: FORBIDDEN');
-        feeToSetter = _feeToSetter;
     }
 }
